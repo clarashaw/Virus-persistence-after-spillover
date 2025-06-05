@@ -46,6 +46,9 @@ DATA.1<-as.data.frame(DATA.1)
 DATA.1<-filter(DATA.1, !is.na(Line)) #clean things up - these come from the lines that don't have uninfected passages
 Data25<-DATA.1 #rename
 
+a<-40 #Ct value of JU1580 for transmission (if it's detectable, then it transmits).
+sig<-5.25 #sd(residuals from fitted lmer) line 299 SpilloverCharacteristics.DataPrep9.22.2023
+
 Passage.best = ProbOfPassage(Data25$best.p, Data25$best.y, a+log2(Data25$rel.susc), Data25$pre.ct, sig)      #Maximum likleihood estimate for the probability of successful passage
 Weight=.8                                            #Factor to adjust passage estimates by to avoid 0% and 100% probability estimates.  Larger values weight the data more.
 MechEstimate=Passage.best*Weight+ 0.5*(1-Weight)     #Slightly adjust the probability of passage to avoid 0% and 100%
@@ -93,6 +96,12 @@ pred.l<-inv.logit((logit(XRange))*(fixef(Model_Null)[1]-coef(summary(Model_Null)
 pred.h<-inv.logit((logit(XRange))*(fixef(Model_Null)[1]+coef(summary(Model_Null))[2]))
 df.pred<-as.data.frame(cbind(XRange, pred, pred.l, pred.h))
 
+XRange=seq(0.001,0.999,.001)    #Set range for plotting model predictions
+pred<-inv.logit((logit(XRange))*0.85882)
+pred.l<-inv.logit((logit(XRange))*(0.85882-0.08423))
+pred.h<-inv.logit((logit(XRange))*(0.85882+0.08423))
+df.pred<-as.data.frame(cbind(XRange, pred, pred.l, pred.h))
+
 #The points are the mech model estimate on the x and the actual result on the y 
 p3<-ggplot(Data25, aes(MechEstimate, infected, color=factor(Passage)))+geom_jitter(height = 0.08, width=0.02)+
   theme_bw()+
@@ -106,6 +115,16 @@ p3<-ggplot(Data25, aes(MechEstimate, infected, color=factor(Passage)))+geom_jitt
   ylab("Passage success")
 save_plot("Figure3.tiff", p3, base_height = 4, base_width = 4.5)
 
+ggplot(Data25, aes(MechEstimate, infected, color=factor(Passage)))+geom_jitter(height = 0.08, width=0.02)+
+  theme_bw()+
+  theme(axis.text = element_text(color="black"))+
+  geom_line(data=df.pred, aes(XRange, pred), color="blue")+
+  geom_line(data=df.pred, aes(XRange, pred.l), color="blue", lty="dashed")+
+  geom_line(data=df.pred, aes(XRange, pred.h), color="blue", lty="dashed")+
+  geom_abline(slope=1, intercept = 0, color="red")+
+  scale_color_discrete(name="Passage")+
+  xlab("Mechanistic model passage estimate")+
+  ylab("Passage success")
 ############ Various versions of the model including and excluding spillover characteristics############
 #Cutoff<25
 #LogitMechPassage (from mechanistic model) is used as the offset... actually, here it's not because I took out the "offset=", but you could put that back in if you want.
@@ -193,6 +212,41 @@ M0000<-exp(-(AICvalues[16]-min(AICvalues))/2)
 sumall<-M1111+M1110+M1101+M1100+M1011+M1010+
   M0111+M0110+M1001+M1000+M0101+M0100+
   M0011+M0010+M0001+M0000
+
+#Calculate akaike weight of each model
+A1<-M1111/sumall
+A2<-M1110/sumall
+A3<-M1101/sumall
+A4<-M1100/sumall
+A5<-M1011/sumall
+A6<-M1010/sumall
+A7<-M0111/sumall
+A8<-M0110/sumall
+A9<-M1001/sumall
+A10<-M1000/sumall
+A11<-M0101/sumall
+A12<-M0100/sumall
+A13<-M0011/sumall
+A14<-M0010/sumall
+A15<-M0001/sumall
+A16<-M0000/sumall
+
+r.squaredGLMM(Model1111)
+r.squaredGLMM(Model0110)
+r.squaredGLMM(Model1110)
+r.squaredGLMM(Model0111)
+r.squaredGLMM(Model0011)
+r.squaredGLMM(Model0010)
+r.squaredGLMM(Model1011)
+r.squaredGLMM(Model1010)
+r.squaredGLMM(Model1100)
+r.squaredGLMM(Model1101)
+r.squaredGLMM(Model0100)
+r.squaredGLMM(Model0001)
+r.squaredGLMM(Model1001)
+r.squaredGLMM(Model0000)
+r.squaredGLMM(Model0101)
+r.squaredGLMM(Model1000)
 
 ct.weight<-(exp(-(AICvalues[1]-min(AICvalues))/2)+exp(-(AICvalues[2]-min(AICvalues))/2)+exp(-(AICvalues[5]-min(AICvalues))/2)+exp(-(AICvalues[6]-min(AICvalues))/2)+
   exp(-(AICvalues[7]-min(AICvalues))/2)+exp(-(AICvalues[8]-min(AICvalues))/2)+exp(-(AICvalues[13]-min(AICvalues))/2)+exp(-(AICvalues[14]-min(AICvalues))/2))/
